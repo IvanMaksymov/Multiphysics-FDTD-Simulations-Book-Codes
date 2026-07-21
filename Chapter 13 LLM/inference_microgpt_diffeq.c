@@ -375,7 +375,82 @@ static void solve_de(const char *de_problem_rpn) {
 }
 
 /* ------------------------------------------------------------------ */
-/* WEIGHT ENGINE: REFACTORED GGUF LOADER                              */
+/* WEIGHT ENGINE 1: NATIVE BINARY FILES                               */
+/* ------------------------------------------------------------------ */
+static void load_weights(void) {
+    printf("Loading weights from binary files...\n");
+    FILE *f;
+    
+    f = fopen("weights/token_embd.bin", "rb");
+    if (!f) { printf("ERROR: weights/token_embd.bin not found\n"); exit(1); }
+    wte = malloc(vocab_size * N_EMBD * sizeof(float));
+    fread(wte, sizeof(float), vocab_size * N_EMBD, f);
+    fclose(f);
+    
+    f = fopen("weights/pos_embd.bin", "rb");
+    if (f) {
+        wpe = malloc(BLOCK_SIZE * N_EMBD * sizeof(float));
+        fread(wpe, sizeof(float), BLOCK_SIZE * N_EMBD, f);
+        fclose(f);
+    } else {
+        wpe = calloc(BLOCK_SIZE * N_EMBD, sizeof(float));
+    }
+    
+    f = fopen("weights/lm_head.bin", "rb");
+    if (f) {
+        lm_head = malloc(vocab_size * N_EMBD * sizeof(float));
+        fread(lm_head, sizeof(float), vocab_size * N_EMBD, f);
+        fclose(f);
+    } else {
+        lm_head = wte;
+    }
+    
+    int as = N_EMBD * N_EMBD;
+    int ms = MLP_DIM * N_EMBD;
+    
+    for (int i = 0; i < N_LAYER; i++) {
+        char path[256];
+        
+        sprintf(path, "weights/layer_%d_attn_wq.bin", i);
+        f = fopen(path, "rb");
+        attn_wq[i] = malloc(as * sizeof(float));
+        if (f) { fread(attn_wq[i], sizeof(float), as, f); fclose(f); }
+        else { memset(attn_wq[i], 0, as * sizeof(float)); }
+        
+        sprintf(path, "weights/layer_%d_attn_wk.bin", i);
+        f = fopen(path, "rb");
+        attn_wk[i] = malloc(as * sizeof(float));
+        if (f) { fread(attn_wk[i], sizeof(float), as, f); fclose(f); }
+        else { memset(attn_wk[i], 0, as * sizeof(float)); }
+        
+        sprintf(path, "weights/layer_%d_attn_wv.bin", i);
+        f = fopen(path, "rb");
+        attn_wv[i] = malloc(as * sizeof(float));
+        if (f) { fread(attn_wv[i], sizeof(float), as, f); fclose(f); }
+        else { memset(attn_wv[i], 0, as * sizeof(float)); }
+        
+        sprintf(path, "weights/layer_%d_attn_wo.bin", i);
+        f = fopen(path, "rb");
+        attn_wo[i] = malloc(as * sizeof(float));
+        if (f) { fread(attn_wo[i], sizeof(float), as, f); fclose(f); }
+        else { memset(attn_wo[i], 0, as * sizeof(float)); }
+        
+        sprintf(path, "weights/layer_%d_fc1.bin", i);
+        f = fopen(path, "rb");
+        mlp_fc1[i] = malloc(ms * sizeof(float));
+        if (f) { fread(mlp_fc1[i], sizeof(float), ms, f); fclose(f); }
+        else { memset(mlp_fc1[i], 0, ms * sizeof(float)); }
+        
+        sprintf(path, "weights/layer_%d_fc2.bin", i);
+        f = fopen(path, "rb");
+        mlp_fc2[i] = malloc(ms * sizeof(float));
+        if (f) { fread(mlp_fc2[i], sizeof(float), ms, f); fclose(f); }
+        else { memset(mlp_fc2[i], 0, ms * sizeof(float)); }
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* WEIGHT ENGINE 2: REFACTORED GGUF LOADER                            */
 /* ------------------------------------------------------------------ */
 static void copy_tensor_f32(struct ggml_tensor *t, float *dst) {
     memcpy(dst, t->data, ggml_nbytes(t));
@@ -460,8 +535,8 @@ int main(void) {
     build_tokenizer();
     
     /* Interchangeable Weight Load Engine Directives */
-    // load_weights();
-    load_weights_gguf("vector_model_complete.gguf");
+    load_weights();
+    //load_weights_gguf("vector_model_complete.gguf");
     
 	printf("\n[Standard Tests]\n");
 	solve_de("y' 1 y * + 0 =");      // Expected: [SOL] C 1 NEG x * exp *
