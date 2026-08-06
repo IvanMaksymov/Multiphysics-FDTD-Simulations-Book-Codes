@@ -5,16 +5,36 @@ clc;
 NX = 80;
 NY = 80;
 
-ternary_file = "snapshot_0480.txt";
-fp_file      = "fp_snapshot_0480.txt";
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Select four snapshots here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+steps = [180 260 340 480];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Read snapshot
+% Plot parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+FONT_SIZE  = 14;
+TITLE_SIZE = 16;
+
+% FP sign threshold
+SIGN_THRESHOLD = 0.1;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Read snapshot function
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function A = read_snapshot(filename,NX,NY)
 
     fid = fopen(filename,"r");
 
+    if(fid < 0)
+        error("Cannot open file: %s",filename);
+    endif
+
+    % Skip header
     fgetl(fid);
     fgetl(fid);
 
@@ -24,180 +44,109 @@ function A = read_snapshot(filename,NX,NY)
 
 endfunction
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Load data
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-T = read_snapshot(ternary_file,NX,NY);
-F = read_snapshot(fp_file,NX,NY);
-
-F ./= max(abs(F(:)));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Combined figure
+% Figure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-FONT_SIZE = 16;       
-TITLE_SIZE = 18;      
-LINE_WIDTH = 2;
-
-figure(1);
+figure(100);
 clf;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Field snapshots
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for n = 1:4
 
-subplot(2,3,1)
+    step = steps(n);
 
-imagesc(T)
+    ternary_file = sprintf("snapshot_%04d.txt",step);
+    fp_file      = sprintf("fp_snapshot_%04d.txt",step);
 
-axis image
-set(gca,"YDir","normal")
-set(gca,"FontSize",FONT_SIZE)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Load fields
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-colormap(gca,[0 0 1;1 1 1;1 0 0])
+    T = read_snapshot(ternary_file,NX,NY);
+    F = read_snapshot(fp_file,NX,NY); F = sign(F);
 
-caxis([-1 1])
+    % Normalise floating point field
+    F ./= max(abs(F(:)));
 
-colorbar
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Spatial polarity agreement
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-title("Ternary field","FontSize",TITLE_SIZE)
+    % Allow one-cell neighbourhood
+    kernel = ones(3,3);
 
+    FP_positive = conv2(F>0,kernel,"same") > 0;
+    FP_negative = conv2(F<0,kernel,"same") > 0;
 
-subplot(2,3,2)
+    pos = find(T == 1);
+    neg = find(T == -1);
 
-imagesc(F)
+    matches = 0;
+    total = length(pos)+length(neg);
 
-axis image
-set(gca,"YDir","normal")
-set(gca,"FontSize",FONT_SIZE)
+    if(length(pos)>0)
+        matches += sum(FP_positive(pos));
+    endif
 
-colormap(gca,jet)
+    if(length(neg)>0)
+        matches += sum(FP_negative(neg));
+    endif
 
-caxis([-1 1])
+    overlap = 100*matches/total;
 
-colorbar
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Plot overlay
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-title("Floating-point field","FontSize",TITLE_SIZE)
+    subplot(2,2,n)
 
+    imagesc(F)
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Spectra
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-FT = abs(fftshift(fft2(T)));
-FF = abs(fftshift(fft2(F)));
-
-subplot(2,3,4)
-
-imagesc(FT+1)
-
-axis image
-set(gca,"YDir","normal")
-set(gca,"FontSize",FONT_SIZE)
-
-colorbar
-
-title("Spectrum (ternary)","FontSize",TITLE_SIZE)
+    axis image
+    set(gca,"YDir","normal")
+    set(gca,"FontSize",FONT_SIZE)
 
 
-subplot(2,3,5)
+    colormap(gray)
 
-imagesc(FF+1)
-
-axis image
-set(gca,"YDir","normal")
-set(gca,"FontSize",FONT_SIZE)
-
-colorbar
-
-title("Spectrum (floating-point)","FontSize",TITLE_SIZE)
+    hold on
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Radial spectra
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Positive ternary field (+1)
 
-cx = floor(size(FT,2)/2)+1;
-cy = floor(size(FT,1)/2)+1;
+    [row,col] = find(T == 1);
 
-R = floor(min(cx,cy));
-
-specT = zeros(R,1);
-specF = zeros(R,1);
-count = zeros(R,1);
+    plot(col,row,...
+         'r.',...
+         'MarkerSize',8)
 
 
-for i=1:size(FT,1)
 
-    for j=1:size(FT,2)
+    % Negative ternary field (-1)
 
-        r = round(sqrt((i-cy)^2+(j-cx)^2));
+    [row,col] = find(T == -1);
 
-        if(r>=1 && r<=R)
+    plot(col,row,...
+         'b.',...
+         'MarkerSize',8)
 
-            specT(r) += FT(i,j);
-            specF(r) += FF(i,j);
-            count(r) += 1;
 
-        endif
+    hold off
 
-    endfor
+
+
+    title(sprintf("Step %d  (agreement %.1f%%)",...
+          step,overlap),...
+          "FontSize",TITLE_SIZE)
 
 endfor
 
 
-specT ./= count;
-specF ./= count;
-
-
-subplot(2,3,[3 6])
-
-
-plot(10*log10(abs(specT)/max(abs(specT))),...
-     "LineWidth",LINE_WIDTH)
-
-hold on
-
-plot(10*log10(abs(specF)/max(abs(specF))),...
-     "LineWidth",LINE_WIDTH)
-
-
-grid on
-
-set(gca,"FontSize",FONT_SIZE)
-
-xlabel("Spatial frequency","FontSize",FONT_SIZE)
-
-ylabel("Average spectral magnitude","FontSize",FONT_SIZE)
-
-legend("Ternary","Floating-point",...
-       "FontSize",FONT_SIZE)
-
-title("Radially averaged spatial spectrum",...
-      "FontSize",TITLE_SIZE)
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Save figure
+% Common colour scale
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-set(gcf,"PaperPositionMode","auto")
+%h = colorbar;
 
-print("Fig1_ch13_fdtd.pdf","-dpdf","-bestfit")
-
-print("Fig1_ch13_fdtd.png","-dpng","-r300")
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Spectral correlation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-v1 = FT(:)-mean(FT(:));
-v2 = FF(:)-mean(FF(:));
-
-spectral_corr = (v1'*v2)/(norm(v1)*norm(v2));
-
-
-fprintf("\n");
-fprintf("Spectral correlation = %.4f\n",spectral_corr);
-fprintf("\n");
+%set(h,"FontSize",FONT_SIZE)

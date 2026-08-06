@@ -10,7 +10,7 @@
 /*---------------------------------------------
   Quantiser threshold
 ---------------------------------------------*/
-#define THRESHOLD         8
+#define THRESHOLD         4
 
 /*---------------------------------------------
   Ternary EM fields (-1,0,+1)
@@ -94,7 +94,7 @@ void init_fields(void)
   Harmonic Ez source
 ---------------------------------------------*/
 #define SOURCE_AMPLITUDE  4.0f
-#define SOURCE_FREQUENCY  0.05f
+#define SOURCE_FREQUENCY  0.01f
 
 int source(int n)
 {
@@ -104,7 +104,6 @@ int source(int n)
 
     return (int)s;
 }
-
 
 float fp_source(int n)
 {
