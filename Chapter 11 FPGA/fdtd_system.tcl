@@ -1,5 +1,5 @@
 set PROJECT fdtd_system
-set HLS_IP_PATH "/media/ivan/Untitled/Ivan_Work_Dec2025/for_FDTD_book/FPGA/fdtd_tmz_hls/solution1/impl/ip"
+set HLS_IP_PATH "../FPGA/fdtd_tmz_hls/solution1/impl/ip"
 
 create_project $PROJECT ./$PROJECT -part xc7a100tifgg484-1L -force
 
