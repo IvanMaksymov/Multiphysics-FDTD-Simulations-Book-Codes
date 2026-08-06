@@ -1,278 +1,163 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// 2‑D TMz FDTD Solver (Educational RTL)
-// - One cell updated per clock cycle
-// - Fixed‑point arithmetic (signed Q6.10)
-//////////////////////////////////////////////////////////////////////////////////
 
 module fdtd_tmz
-#(
-    parameter NX = 24,
-    parameter NY = 24,
-    parameter DW = 16,
-    parameter STEP_DELAY = 16'd10000
-
-)
 (
-    input  wire                 clk,
-    input  wire                 rst,
-
-    // Start one FDTD timestep
-    input  wire                 start,
-
-    // FDTD coefficients (Q6.10)
-    input  wire signed [DW-1:0] ce,
-    input  wire signed [DW-1:0] chx,
-    input  wire signed [DW-1:0] chy,
-
-    // Soft source excitation
-    input  wire signed [DW-1:0] source,
-
-    // Status
-    output reg                  busy,
-    output reg                  done,
-
-    // six onboard LEDs
-    output wire [5:0]           LED,
-
-    // Ez centre value
-    output wire signed [DW-1:0] ez_center
+    input  wire       clk,
+    input  wire       rst,
+    output wire [5:0] LED
 );
 
-    localparam SIZE = NX * NY;
+    parameter NX = 16;
+    parameter NY = 16;
+    parameter SIZE = NX*NY;
 
-    //////////////////////////////////////////////////////////////
-    // Field memories (block RAM)
-    //////////////////////////////////////////////////////////////
-    (* ram_style = "block" *) reg signed [DW-1:0] Ez [0:SIZE-1];
-    (* ram_style = "block" *) reg signed [DW-1:0] Hx [0:SIZE-1];
-    (* ram_style = "block" *) reg signed [DW-1:0] Hy [0:SIZE-1];
+    //--------------------------------------------------
+    // Fields
+    //--------------------------------------------------
 
-    assign ez_center = Ez[(NY/2)*NX + (NX/2)];
+    reg signed [15:0] Ez [0:SIZE-1];
+    reg signed [15:0] Hx [0:SIZE-1];
+    reg signed [15:0] Hy [0:SIZE-1];
 
-    //////////////////////////////////////////////////////////////
-    // LED amplitude display
-    // Display Ez centre value on six LEDs
-    //////////////////////////////////////////////////////////////
+    integer i;
 
-    // assign LED = ez_center[15:10];
-    wire signed [15:0] ez_abs;
+    //--------------------------------------------------
+    // Coordinates
+    //--------------------------------------------------
 
-    assign ez_abs = ez_center[15] ? -ez_center : ez_center;
+    reg [3:0] x;
+    reg [3:0] y;
 
-    assign LED[0] = busy;
-    assign LED[1] = done;
-    assign LED[5:2] = ez_abs[13:10];
+    wire [7:0] addr;
+    wire [7:0] addr_r;
+    wire [7:0] addr_u;
 
-    //////////////////////////////////////////////////////////////
-    // Controller states
-    //////////////////////////////////////////////////////////////
-    localparam S_CLEAR    = 3'd0;
-    localparam S_IDLE     = 3'd1;
-    localparam S_UPDATEHX = 3'd2;
-    localparam S_UPDATEHY = 3'd3;
-    localparam S_UPDATEEZ = 3'd4;
-    localparam S_BOUNDARY = 3'd5;
-    localparam S_DONE     = 3'd6;
+    assign addr   = y*NX + x;
+    assign addr_r = y*NX + x + 1;
+    assign addr_u = (y+1)*NX + x;
 
-    reg [2:0] state;
+    //--------------------------------------------------
+    // Fixed point coefficient
+    // C = 0.25 in Q12
+    //--------------------------------------------------
 
-    //////////////////////////////////////////////////////////////
-    // Grid coordinates
-    //////////////////////////////////////////////////////////////
-    reg [7:0] x;
-    reg [7:0] y;
+    localparam signed [15:0] C = 16'sd1024;
 
-    //////////////////////////////////////////////////////////////
-    // Address calculation
-    //////////////////////////////////////////////////////////////
-    wire [15:0] addr       = y * NX + x;
-    wire [15:0] addr_up    = (y + 1) * NX + x;
-    wire [15:0] addr_right = y * NX + (x + 1);
-    wire [15:0] addr_left  = y * NX + (x - 1);
-    wire [15:0] addr_ym1   = (y - 1) * NX + x;
-
-    //////////////////////////////////////////////////////////////
-    // Arithmetic registers
-    //////////////////////////////////////////////////////////////
-    reg signed [31:0] delta;
     reg signed [31:0] curl;
 
-    //////////////////////////////////////////////////////////////
-    // Automatic timestep trigger
-    //////////////////////////////////////////////////////////////
-    reg [15:0] timer;
+    //--------------------------------------------------
+    // Clock divider
+    // slows visual evolution
+    //--------------------------------------------------
 
-    wire start_internal;
+    reg [15:0] counter;
 
-    assign start_internal = (timer == STEP_DELAY);
+    wire step;
+
+    assign step = (counter == 16'd5000);
 
     always @(posedge clk)
     begin
-        if (rst)
-            timer <= 16'd0;
-        else if (timer == STEP_DELAY)
-            timer <= 16'd0;
+        if(rst)
+            counter <= 0;
+
+        else if(step)
+            counter <= 0;
+
         else
-            timer <= timer + 1'b1;
+            counter <= counter + 1;
+
     end
 
-    //////////////////////////////////////////////////////////////
-    // Main controller
-    //////////////////////////////////////////////////////////////
-    integer i;
+    //--------------------------------------------------
+    // FDTD update
+    //--------------------------------------------------
 
-    always @(posedge clk) begin
-        if (rst) begin
-            state <= S_CLEAR;
-            busy  <= 1'b1;
-            done  <= 1'b0;
-            x     <= 0;
-            y     <= 0;
+    always @(posedge clk)
+    begin
 
-            // Clear memories
-            for (i = 0; i < SIZE; i = i + 1) begin
+        if(rst)
+        begin
+
+            x <= 1;
+            y <= 1;
+
+            for(i=0;i<SIZE;i=i+1)
+            begin
                 Ez[i] <= 0;
                 Hx[i] <= 0;
                 Hy[i] <= 0;
             end
+
         end
-        else begin
-            case (state)
 
-                //////////////////////////////////////////////////////
-                // Clear field memories
-                //////////////////////////////////////////////////////
-                S_CLEAR: begin
-                    Ez[addr] <= 0;
-                    Hx[addr] <= 0;
-                    Hy[addr] <= 0;
+        else if(step)
+        begin
 
-                    if (x == NX-1) begin
-                        x <= 0;
-                        if (y == NY-1) begin
-                            y    <= 0;
-                            busy <= 1'b0;
-                            state <= S_IDLE;
-                        end else begin
-                            y <= y + 1;
-                        end
-                    end else begin
-                        x <= x + 1;
-                    end
-                end
+            //--------------------------------------------------
+            // update one cell each step
+            //--------------------------------------------------
+            if((x < NX-1) && (y < NY-1))
+            begin
 
-                //////////////////////////////////////////////////////
-                // Wait for start
-                //////////////////////////////////////////////////////
-                S_IDLE: begin
-                    done <= 1'b0;
+                // magnetic fields
+                Hx[addr] <= Hx[addr]
+                    - (((Ez[addr_u]-Ez[addr]) * C) >>> 12);
 
-                    if (start_internal) begin
-                        busy  <= 1'b1;
-                        x     <= 0;
-                        y     <= 0;
-                        state <= S_UPDATEHX;
-                    end
-                end
 
-                //////////////////////////////////////////////////////
-                // Update Hx
-                //////////////////////////////////////////////////////
-                S_UPDATEHX: begin
-                    delta = Ez[addr_up] - Ez[addr];
-                    Hx[addr] <= Hx[addr] - ((delta * chx) >>> 10);
+                Hy[addr] <= Hy[addr]
+                    + (((Ez[addr_r]-Ez[addr]) * C) >>> 12);
 
-                    if (y == NY-2) begin
-                        y <= 0;
-                        if (x == NX-1) begin
-                            x     <= 0;
-                            state <= S_UPDATEHY;
-                        end else begin
-                            x <= x + 1;
-                        end
-                    end else begin
-                        y <= y + 1;
-                    end
-                end
+                // electric field
+                curl =
+                    (Hy[addr]-Hy[addr-1])
+                  - (Hx[addr]-Hx[addr-NX]);
 
-                //////////////////////////////////////////////////////
-                // Update Hy
-                //////////////////////////////////////////////////////
-                S_UPDATEHY: begin
-                    delta = Ez[addr_right] - Ez[addr];
-                    Hy[addr] <= Hy[addr] + ((delta * chy) >>> 10);
+                Ez[addr] <= Ez[addr]
+                    + ((curl*C) >>> 12);
 
-                    if (x == NX-2) begin
-                        x <= 0;
-                        if (y == NY-1) begin
-                            x     <= 1;
-                            y     <= 1;
-                            state <= S_UPDATEEZ;
-                        end else begin
-                            y <= y + 1;
-                        end
-                    end else begin
-                        x <= x + 1;
-                    end
-                end
+                //--------------------------------------------------
+                // point source
+                //--------------------------------------------------
+                if((x==NX/2)&&(y==NY/2))
+                    Ez[addr] <= Ez[addr] + 16'sd2000;
 
-                //////////////////////////////////////////////////////
-                // Update Ez
-                //////////////////////////////////////////////////////
-                S_UPDATEEZ: begin
-                    curl =
-                        (Hy[addr] - Hy[addr_left]) -
-                        (Hx[addr] - Hx[addr_ym1]);
+            end
 
-                    Ez[addr] <= Ez[addr] + ((curl * ce) >>> 10);
+            //--------------------------------------------------
+            // move through grid
+            //--------------------------------------------------
+            if(x==NX-2)
+            begin
+                x <= 1;
 
-                    if ((x == NX/2) && (y == NY/2)) begin
-                        Ez[addr] <= Ez[addr] + ((curl * ce) >>> 10) + source;
-                    end
+                if(y==NY-2)
+                    y <= 1;
+                else
+                    y <= y+1;
 
-                    if (x == NX-1) begin
-                        x <= 1;
-                        if (y == NY-1) begin
-                            y     <= 0;
-                            state <= S_BOUNDARY;
-                        end else begin
-                            y <= y + 1;
-                        end
-                    end else begin
-                        x <= x + 1;
-                    end
-                end
+            end
 
-                //////////////////////////////////////////////////////
-                // PEC boundaries
-                //////////////////////////////////////////////////////
-                S_BOUNDARY: begin
-                    Ez[y*NX]           <= 0;
-                    Ez[y*NX + NX-1]    <= 0;
-                    Ez[x]              <= 0;
-                    Ez[(NY-1)*NX + x]  <= 0;
+            else
+                x <= x+1;
 
-                    if (y == NY-1) begin
-                        y     <= 0;
-                        state <= S_DONE;
-                    end else begin
-                        y <= y + 1;
-                    end
-                end
-
-                //////////////////////////////////////////////////////
-                // Done
-                //////////////////////////////////////////////////////
-                S_DONE: begin
-                    busy <= 1'b0;
-                    done <= 1'b1;
-
-                    state <= S_IDLE;
-                end
-
-            endcase
         end
+
     end
+
+    //--------------------------------------------------
+    // LED display
+    //--------------------------------------------------
+    wire signed [15:0] centre;
+
+    assign centre = Ez[(NY/2)*NX+(NX/2)];
+
+    wire signed [15:0] abs_centre;
+
+    assign abs_centre =
+        centre[15] ? -centre : centre;
+
+    assign LED[5:0] = abs_centre[15:10];
+
 
 endmodule
