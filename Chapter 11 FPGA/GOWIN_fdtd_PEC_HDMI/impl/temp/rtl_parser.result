@@ -1,0 +1,62 @@
+[
+ {
+  "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+  "InstLine" : 24,
+  "InstName" : "video_top",
+  "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+  "ModuleLine" : 24,
+  "ModuleName" : "video_top",
+  "SubInsts" : [
+   {
+    "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+    "InstLine" : 115,
+    "InstName" : "u_fdtd",
+    "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/fdtd_tmz_hdmi.v",
+    "ModuleLine" : 3,
+    "ModuleName" : "fdtd_tmz"
+   },
+   {
+    "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+    "InstLine" : 126,
+    "InstName" : "testpattern_inst",
+    "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/testpattern.v",
+    "ModuleLine" : 6,
+    "ModuleName" : "testpattern"
+   },
+   {
+    "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+    "InstLine" : 169,
+    "InstName" : "u_tmds_rpll",
+    "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/gowin_rpll/TMDS_rPLL.v",
+    "ModuleLine" : 9,
+    "ModuleName" : "TMDS_rPLL"
+   },
+   {
+    "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+    "InstLine" : 186,
+    "InstName" : "DVI_TX_Top_inst",
+    "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/dvi_tx/dvi_tx.v",
+    "ModuleLine" : 1072,
+    "ModuleName" : "DVI_TX_Top",
+    "SubInsts" : [
+     {
+      "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/dvi_tx/dvi_tx.v",
+      "InstLine" : 1103,
+      "InstName" : "rgb2dvi_inst",
+      "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/dvi_tx/dvi_tx.v",
+      "ModuleLine" : 10,
+      "ModuleName" : "~rgb2dvi.DVI_TX_Top"
+     }
+    ]
+   },
+   {
+    "InstFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+    "InstLine" : 203,
+    "InstName" : "key_led_ctrl_inst",
+    "ModuleFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/key_led_ctrl.v",
+    "ModuleLine" : 1,
+    "ModuleName" : "key_led_ctrl"
+   }
+  ]
+ }
+]
