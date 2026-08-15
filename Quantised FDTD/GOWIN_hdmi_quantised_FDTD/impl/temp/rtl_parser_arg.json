@@ -1,0 +1,37 @@
+{
+ "Device" : "GW2AR-18C",
+ "Files" : [
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/dvi_tx/dvi_tx.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/fdtd_tmz_hdmi.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/gowin_rpll/TMDS_rPLL.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/key_led_ctrl.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/testpattern.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/src/video_top.v",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "/home/ivan/Ivan_Work_PrecisionTower/gowin/hdmi/impl/temp/rtl_parser.result",
+ "Top" : "",
+ "VerilogStd" : "verilog_2001",
+ "VhdlStd" : "vhdl_93"
+}

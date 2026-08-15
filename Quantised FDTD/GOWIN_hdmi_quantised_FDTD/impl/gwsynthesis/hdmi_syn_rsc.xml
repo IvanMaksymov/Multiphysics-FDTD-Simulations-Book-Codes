@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="video_top" Register="25" Lut="52" T_Register="469(25)" T_Alu="271(0)" T_Lut="998(52)" T_Bsram="28(0)">
+ <SubModule name="u_fdtd" Register="298" Alu="202" Lut="462" Bsram="28" T_Register="298(298)" T_Alu="202(202)" T_Lut="462(462)" T_Bsram="28(28)"/>
+ <SubModule name="testpattern_inst" Register="62" Lut="239" T_Register="62(62)" T_Lut="239(239)"/>
+ <SubModule name="u_tmds_rpll"/>
+ <SubModule name="DVI_TX_Top_inst" Register="73" Alu="69" Lut="229" T_Register="73(73)" T_Alu="69(69)" T_Lut="229(229)"/>
+ <SubModule name="key_led_ctrl_inst" Register="11" Lut="16" T_Register="11(11)" T_Lut="16(16)"/>
+</Module>
